@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model categories {
+  id         Int        @id @default(autoincrement())
+  shop_id    Int
+  name       String     @db.VarChar(25)
+  created_at DateTime   @default(now()) @db.Timestamp(0)
+  updated_at DateTime   @default(now()) @db.Timestamp(0)
+  shops      shops      @relation(fields: [shop_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "categories_ibfk_1")
+  products   products[]
+
+  @@unique([shop_id, name], map: "name_unique")
+}
+
+model product_price_details {
+  shop_id                Int
+  product_unit_detail_id Int
+  price                  Int
+  sale_price             Int                  @default(0)
+  shops                  shops                @relation(fields: [shop_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_price_details_ibfk_1")
+  product_unit_details   product_unit_details @relation(fields: [product_unit_detail_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_price_details_ibfk_2")
+
+  @@id([shop_id, product_unit_detail_id])
+  @@index([product_unit_detail_id], map: "product_unit_detail_id")
+}
+
+model product_stock_details {
+  shop_id    Int
+  product_id Int
+  capital    Int
+  stock      Int
+  shops      shops    @relation(fields: [shop_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_stock_details_ibfk_1")
+  products   products @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_stock_details_ibfk_2")
+
+  @@id([shop_id, product_id, capital])
+  @@index([product_id], map: "product_id")
+}
+
+model product_unit_details {
+  id            Int                     @id @default(autoincrement())
+  shop_id       Int
+  product_id    Int
+  unit_id       Int
+  code          String                  @db.VarChar(30)
+  quantity      Int
+  price         product_price_details[]
+  shops         shops                   @relation(fields: [shop_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_unit_details_ibfk_1")
+  product       products                @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "product_unit_details_ibfk_2")
+  unit          units                   @relation(fields: [unit_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "product_unit_details_ibfk_3")
+  sales_details sales_details[]
+
+  @@unique([shop_id, code], map: "code_unique")
+  @@unique([product_id, unit_id], map: "product_unit_unique")
+  @@index([unit_id], map: "unit_id")
+}
+
+model products {
+  id                    Int                     @id @default(autoincrement())
+  shop_id               Int
+  name                  String                  @db.VarChar(70)
+  category_id           Int
+  description           String?                 @db.VarChar(225)
+  min_stock             Int?
+  created_at            DateTime                @default(now()) @db.Timestamp(0)
+  updated_at            DateTime                @default(now()) @db.Timestamp(0)
+  product_stock_details product_stock_details[]
+  product_unit_details  product_unit_details[]
+  shops                 shops                   @relation(fields: [shop_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "products_ibfk_1")
+  category              categories              @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "products_ibfk_2")
+
+  @@unique([shop_id, name], map: "name_unique")
+  @@index([category_id], map: "category_id")
+}
+
+model shops {
+  id                          Int                     @id @default(autoincrement())
+  name                        String                  @db.VarChar(25)
+  no_hp                       String                  @db.VarChar(13)
+  address                     String                  @db.VarChar(100)
+  owner_id                    Int
+  license_key                 String?                 @unique(map: "license_key_unique") @db.VarChar(750)
+  expired_at                  DateTime                @db.DateTime(0)
+  foot_note                   String?                 @db.VarChar(100)
+  pole_note                   String?                 @db.VarChar(100)
+  created_at                  DateTime                @default(now()) @db.Timestamp(0)
+  updated_at                  DateTime                @default(now()) @db.Timestamp(0)
+  categories                  categories[]
+  customers                   customers[]
+  product_price_details       product_price_details[]
+  product_stock_details       product_stock_details[]
+  product_unit_details        product_unit_details[]
+  products                    products[]
+  sales                       sales[]
+  users_shops_owner_idTousers users                   @relation("shops_owner_idTousers", fields: [owner_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "shops_ibfk_1")
+  suppliers                   suppliers[]
+  units                       units[]
+  users_users_shop_idToshops  users[]                 @relation("users_shop_idToshops")
+
+  @@unique([owner_id, name, address], map: "name_address_unique")
+}
+
+model units {
+  id                   Int                    @id @default(autoincrement())
+  shop_id              Int
+  name                 String                 @db.VarChar(25)
+  created_at           DateTime               @default(now()) @db.Timestamp(0)
+  updated_at           DateTime               @default(now()) @db.Timestamp(0)
+  product_unit_details product_unit_details[]
+  shops                shops                  @relation(fields: [shop_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "units_ibfk_1")
+
+  @@unique([shop_id, name], map: "name_unique")
+}
+
+model users {
+  id            Int        @id @default(autoincrement())
+  full_name     String     @db.VarChar(75)
+  email         String     @unique(map: "email_unique") @db.VarChar(128)
+  password      String     @db.VarChar(225)
+  role          users_role @default(CASHIER)
+  status        Boolean    @default(true)
+  refresh_token String?    @unique(map: "refresh_token_unique") @db.VarChar(750)
+  shop_id       Int?
+  created_at    DateTime   @default(now()) @db.Timestamp(0)
+  updated_at    DateTime   @default(now()) @db.Timestamp(0)
+  shops         shops[]    @relation("shops_owner_idTousers")
+  shop          shops?     @relation("users_shop_idToshops", fields: [shop_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "users_ibfk_1")
+
+  @@index([shop_id], map: "shop_id")
+}
+
+model suppliers {
+  id         Int      @id @default(autoincrement())
+  shop_id    Int
+  name       String   @db.VarChar(70)
+  address    String   @db.VarChar(100)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @default(now()) @db.Timestamp(0)
+  shops      shops    @relation(fields: [shop_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "suppliers_ibfk_1")
+
+  @@unique([shop_id, name, address], map: "supplier_unique")
+}
+
+model customers {
+  id         Int      @id @default(autoincrement())
+  shop_id    Int
+  full_name  String   @db.VarChar(70)
+  address    String   @db.VarChar(100)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  updated_at DateTime @default(now()) @db.Timestamp(0)
+  shops      shops    @relation(fields: [shop_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "customers_ibfk_1")
+  sales      sales[]
+
+  @@unique([shop_id, full_name, address], map: "customer_unique")
+}
+
+model sales {
+  id                    Int                     @id @default(autoincrement())
+  shop_id               Int
+  customer_id           Int?
+  invoice               String                  @db.VarChar(10)
+  total                 Int
+  profit                Int
+  debt                  Int?
+  created_at            DateTime                @default(now()) @db.Timestamp(0)
+  updated_at            DateTime                @default(now()) @db.Timestamp(0)
+  shops                 shops                   @relation(fields: [shop_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sales_ibfk_1")
+  customers             customers?              @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "sales_ibfk_2")
+  sales_details         sales_details[]
+  sales_payment_details sales_payment_details[]
+
+  @@index([customer_id], map: "customer_id")
+  @@index([shop_id], map: "shop_id")
+}
+
+model sales_details {
+  sales_id             Int
+  product_unit_id      Int
+  quantity             Int
+  price                Int
+  total                Int
+  capital              Int
+  profit               Int
+  sales                sales                @relation(fields: [sales_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sales_details_ibfk_1")
+  product_unit_details product_unit_details @relation(fields: [product_unit_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "sales_details_ibfk_2")
+
+  @@id([sales_id, product_unit_id])
+  @@index([product_unit_id], map: "product_unit_id")
+}
+
+model sales_payment_details {
+  sales_id   Int
+  pay        Int
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  sales      sales    @relation(fields: [sales_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sales_payment_details_ibfk_1")
+
+  @@id([sales_id, created_at])
+}
+
+enum users_role {
+  OWNER
+  ADMIN
+  CASHIER
+}
